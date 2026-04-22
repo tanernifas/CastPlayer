@@ -15,6 +15,7 @@
   .hidden { display: none; }
   img { max-width: 150px; display: block; margin: 0.5rem auto; }
   label { font-weight: 500; margin-top: 1rem; display: block; }
+  .log { font-family: monospace; font-size: 0.85rem; background: #f8f9fa; padding: 0.5rem; border-radius: 4px; margin-top: 0.5rem; }
 </style>
 </head>
 <body>
@@ -22,36 +23,78 @@
 <h2>📺 Отправка потока на Android TV</h2>
 
 <label>IP-адрес TV</label>
-<input type="text" id="tvIp" placeholder="192.168.x.x" value="">
+<input type="text" id="tvIp" placeholder="192.168.x.x" value="192.168.0.9">
 
-<label>Логин / Пароль (если включена авторизация в плеере)</label>
+<label>Логин / Пароль (оставьте пустыми, если не требуется)</label>
 <div class="row">
-  <input type="text" id="user" placeholder="admin" value="">
+  <input type="text" id="user" placeholder="kodi" value="">
   <input type="password" id="pass" placeholder="пароль" value="">
 </div>
 
 <label>Прямая ссылка на поток (.m3u8, .mp4, .mpd)</label>
-<input type="url" id="streamUrl" placeholder="https://cdn.example.com/video.m3u8">
+<input type="url" id="streamUrl" placeholder="https://example.com/video.mp4" value="https://samplelib.com/preview/mp4/sample-5s.mp4">
 
 <label>Плеер на TV</label>
 <select id="player">
+  <option value="kodi">Kodi (рекомендуется)</option>
   <option value="vlc">VLC for Android TV</option>
-  <option value="kodi">Kodi</option>
   <option value="intent">Android Intent (vlc://)</option>
 </select>
 
 <button onclick="sendToTV()">▶ Отправить на TV</button>
-<button onclick="generateQR()">📱 Показать QR для TV</button>
+<button onclick="testConnection()">🔌 Проверить соединение</button>
+<button onclick="generateQR()">📱 Показать QR</button>
 <div id="qrBlock" class="hidden"><img id="qrImg" alt="QR"></div>
 
-<div class="status" id="status">Готово. Введите данные и нажмите "Отправить".</div>
+<div class="status" id="status">Готово к работе</div>
+<div class="log hidden" id="log"></div>
 
 <script>
-// Вспомогательная функция: кодирование Basic Auth
+function log(msg) {
+  const logDiv = document.getElementById('log');
+  logDiv.textContent = msg;
+  logDiv.classList.remove('hidden');
+  console.log(msg);
+}
+
 function getAuthHeader(user, pass) {
   if (!user && !pass) return null;
   const credentials = `${user || ''}:${pass || ''}`;
   return 'Basic ' + btoa(credentials);
+}
+
+async function testConnection() {
+  const ip = document.getElementById('tvIp').value.trim();
+  const status = document.getElementById('status');
+  
+  if (!ip) {
+    status.textContent = '⚠️ Введите IP-адрес TV';
+    return;
+  }
+  
+  try {
+    // Проверяем доступность Kodi
+    const response = await fetch(`http://${ip}:8080/jsonrpc`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: "2.0", method: "JSONRPC.Introspect", id: 1 }),
+      mode: 'cors'
+    });
+    
+    if (response.status === 401) {
+      status.textContent = '⚠️ Требуется авторизация (401). Введите логин/пароль или отключите авторизацию в Kodi';
+      status.style.background = '#fff3cd';
+    } else if (response.status === 200) {
+      status.textContent = '✅ Kodi доступен!';
+      status.style.background = '#d4edda';
+    } else {
+      status.textContent = `ℹ️ Статус: ${response.status}`;
+      status.style.background = '#cce5ff';
+    }
+  } catch (err) {
+    status.textContent = `❌ Ошибка соединения: ${err.message}`;
+    status.style.background = '#f8d7da';
+  }
 }
 
 async function sendToTV() {
@@ -69,51 +112,93 @@ async function sendToTV() {
   }
 
   const authHeader = getAuthHeader(user, pass);
-  const headers = authHeader ? { 'Authorization': authHeader } : {};
-
+  
   try {
-    if (player === 'vlc') {
-      // VLC HTTP API: GET-запрос
-      const vlcUrl = `http://${ip}:8080/requests/status.json?command=in_play&input=${encodeURIComponent(streamUrl)}`;
-      await fetch(vlcUrl, { method: 'GET', headers, mode: 'no-cors' });
-      status.textContent = '✅ Команда отправлена в VLC. Проверьте воспроизведение на TV.';
-      status.style.background = '#d4edda';
-
-    } else if (player === 'kodi') {
-      // Kodi JSON-RPC API: POST-запрос
-      const kodiUrl = `http://${ip}:8080/jsonrpc`;
+    if (player === 'kodi') {
+      log('📤 Отправка в Kodi...');
+      
       const payload = {
         jsonrpc: "2.0",
         method: "Player.Open",
-        params: { item: { file: streamUrl } },
+        params: { 
+          item: { 
+            file: streamUrl 
+          } 
+        },
         id: 1
       };
-      await fetch(kodiUrl, {
+      
+      log(`URL: http://${ip}:8080/jsonrpc`);
+      log(`Payload: ${JSON.stringify(payload)}`);
+      
+      const headers = {
+        'Content-Type': 'application/json'
+      };
+      
+      if (authHeader) {
+        headers['Authorization'] = authHeader;
+      }
+      
+      const response = await fetch(`http://${ip}:8080/jsonrpc`, {
         method: 'POST',
-        headers: { ...headers, 'Content-Type': 'application/json' },
+        headers: headers,
         body: JSON.stringify(payload),
-        mode: 'no-cors' // Обходим CORS для локальной сети
+        mode: 'cors'
       });
-      status.textContent = '✅ Команда отправлена в Kodi. Проверьте воспроизведение на TV.';
+      
+      log(`Status: ${response.status} ${response.statusText}`);
+      
+      if (response.status === 401) {
+        status.textContent = '❌ 401 Unauthorized. Включите авторизацию или оставьте поля логин/пароль пустыми в Kodi';
+        status.style.background = '#f8d7da';
+      } else if (response.status === 415) {
+        status.textContent = '❌ 415 Unsupported Media Type. Проверьте Content-Type заголовок';
+        status.style.background = '#f8d7da';
+      } else if (response.status === 200) {
+        const data = await response.json();
+        log(`Response: ${JSON.stringify(data)}`);
+        status.textContent = '✅ Команда успешно отправлена в Kodi!';
+        status.style.background = '#d4edda';
+      } else {
+        status.textContent = `ℹ️ Ответ сервера: ${response.status}`;
+        status.style.background = '#cce5ff';
+      }
+      
+    } else if (player === 'vlc') {
+      log('📤 Отправка в VLC...');
+      
+      const vlcUrl = `http://${ip}:8080/requests/status.json?command=in_play&input=${encodeURIComponent(streamUrl)}`;
+      
+      const headers = {};
+      if (authHeader) {
+        headers['Authorization'] = authHeader;
+      }
+      
+      await fetch(vlcUrl, { 
+        method: 'GET', 
+        headers: headers,
+        mode: 'no-cors' 
+      });
+      
+      status.textContent = '✅ Команда отправлена в VLC (проверьте TV)';
       status.style.background = '#d4edda';
-
+      
     } else {
-      // Fallback: Android Intent (работает, если на устройстве есть обработчик vlc://)
       window.location.href = `vlc://${encodeURIComponent(streamUrl)}`;
-      status.textContent = '📱 Попытка открыть через Intent. Если не сработало — используйте VLC/Kodi с HTTP-API.';
+      status.textContent = '📱 Попытка открыть через Intent';
       status.style.background = '#cce5ff';
     }
   } catch (err) {
+    log(`Error: ${err.message}`);
     status.textContent = `❌ Ошибка: ${err.message}`;
     status.style.background = '#f8d7da';
-    console.error('Send error:', err);
   }
 }
 
 function generateQR() {
   const url = document.getElementById('streamUrl').value.trim();
   if (!url) {
-    document.getElementById('status').textContent = '⚠️ Введите ссылку на поток перед генерацией QR';
+    document.getElementById('status').textContent = '⚠️ Введите ссылку на поток';
     return;
   }
   const qr = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`;
