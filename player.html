@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Video Cast Player</title>
+  <!-- Cast SDK v3 -->
+  <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f0f1a;
+      color: #e8e8f0;
+      min-height: 100vh;
+      padding: 16px;
+    }
+    .container { max-width: 640px; margin: 0 auto; }
+    
+    .header { text-align: center; padding: 20px 0 16px; }
+    .header h1 {
+      font-size: 1.4rem;
+      margin-bottom: 6px;
+      background: linear-gradient(135deg, #6c5ce7, #00cec9);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      background: #2a2a4a;
+      color: #888;
+    }
+    .badge.active { background: #00c853; color: #000; }
+    .badge.disabled { background: #ff5252; color: #fff; }
+
+    .cast-area {
+      background: rgba(255,255,255,0.05);
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 16px;
+      text-align: center;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .cast-area.hidden { display: none; }
+    google-cast-launcher {
+      width: 46px; height: 46px; cursor: pointer;
+      --connected-color: #00c853;
+    }
+    .cast-status { margin-top: 10px; font-size: 0.85rem; color: #888; }
+    .cast-status.connected { color: #00c853; }
+
+    .input-group {
+      background: rgba(255,255,255,0.05);
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 16px;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .input-group label { display: block; font-size: 0.8rem; color: #888; margin-bottom: 8px; }
+    .input-row { display: flex; gap: 8px; }
+    .input-row input {
+      flex: 1; padding: 12px; border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.2);
+      background: rgba(0,0,0,0.3); color: #fff; font-size: 0.9rem; outline: none;
+    }
+    .input-row input:focus { border-color: #6c5ce7; }
+    .btn {
+      padding: 12px 18px; background: linear-gradient(135deg, #6c5ce7, #7f70f0);
+      color: white; border: none; border-radius: 10px; cursor: pointer;
+      font-weight: 600; font-size: 0.9rem; white-space: nowrap;
+    }
+    .btn:active { transform: scale(0.97); }
+    .quick-links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .quick-links .btn { padding: 7px 12px; font-size: 0.8rem; background: rgba(255,255,255,0.1); }
+
+    .player-wrapper {
+      background: #000; border-radius: 14px; overflow: hidden;
+      position: relative; aspect-ratio: 16/9;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .player-wrapper video { width: 100%; height: 100%; display: block; }
+    .placeholder {
+      position: absolute; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; color: #555; gap: 10px;
+    }
+    .placeholder svg { width: 56px; height: 56px; fill: #333; }
+
+    .toast {
+      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(100px);
+      background: #1a1a2e; border: 1px solid rgba(255,255,255,0.2);
+      padding: 10px 18px; border-radius: 10px; font-size: 0.85rem;
+      z-index: 9999; transition: transform 0.3s; pointer-events: none;
+      max-width: 90%; text-align: center;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+    .toast.error { border-color: #ff5252; }
+    .toast.success { border-color: #00c853; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header">
+    <h1> Video Player</h1>
+    <span class="badge" id="protocolBadge">Загрузка...</span>
+  </div>
+
+  <!-- Cast Button -->
+  <div class="cast-area" id="castArea">
+    <google-cast-launcher></google-cast-launcher>
+    <div class="cast-status" id="castStatus"> Ожидание Cast API...</div>
+  </div>
+
+  <!-- URL Input -->
+  <div class="input-group">
+    <label>🔗 Ссылка на видео</label>
+    <div class="input-row">
+      <input type="text" id="videoUrl" placeholder="https://example.com/video.mp4"
+             value="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4">
+      <button class="btn" id="playBtn" onclick="handlePlay()">▶ Play</button>
+    </div>
+    <div class="quick-links">
+      <button class="btn" onclick="setUrl('https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4')">Big Buck Bunny</button>
+      <button class="btn" onclick="setUrl('https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4')">Sintel</button>
+      <button class="btn" onclick="setUrl('https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8')">HLS Test</button>
+    </div>
+  </div>
+
+  <!-- Player -->
+  <div class="player-wrapper">
+    <video id="videoPlayer" controls playsinline webkit-playsinline></video>
+    <div class="placeholder" id="placeholder">
+      <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+      <p>Введите ссылку и нажмите Play</p>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // ═══════════════════════════════════════
+  //  Protocol Detection
+  // ═══════════════════════════════════════
+  const protocol = window.location.protocol;
+  const isFile = protocol === 'file:';
+  const badge = document.getElementById('protocolBadge');
+  const castArea = document.getElementById('castArea');
+  
+  if (isFile) {
+    badge.textContent = '📁 Локальный файл';
+    badge.className = 'badge disabled';
+    castArea.classList.add('hidden');
+  } else {
+    badge.textContent = '🌐 Веб-сервер';
+    badge.className = 'badge active';
+  }
+
+  // ═══════════════════════════════════════
+  //  State & DOM
+  // ═══════════════════════════════════════
+  let castContext = null;
+  let currentSession = null;
+  let hlsInstance = null;
+  
+  const video = document.getElementById('videoPlayer');
+  const placeholder = document.getElementById('placeholder');
+  const toast = document.getElementById('toast');
+  const urlInput = document.getElementById('videoUrl');
+  const statusEl = document.getElementById('castStatus');
+
+  // ═══════════════════════════════════════
+  //  Toast
+  // ═══════════════════════════════════════
+  function showToast(msg, type = 'info', duration = 3000) {
+    toast.textContent = msg;
+    toast.className = `toast ${type}`;
+    requestAnimationFrame(() => toast.classList.add('show'));
+    setTimeout(() => toast.classList.remove('show'), duration);
+  }
+
+  // ═══════════════════════════════════════
+  //  Local Playback
+  // ═══════════════════════════════════════
+  function playLocal() {
+    const url = urlInput.value.trim();
+    if (!url) return showToast('Введите ссылку', 'error');
+    
+    if (hlsInstance) { hlsInstance.destroy(); hlsInstance = null; }
+    placeholder.style.display = 'none';
+    
+    const isHls = url.includes('.m3u8');
+    if (isHls && window.Hls && Hls.isSupported()) {
+      hlsInstance = new Hls();
+      hlsInstance.loadSource(url);
+      hlsInstance.attachMedia(video);
+      hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => video.play().catch(()=>{}));
+    } else if (isHls && video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = url; video.play().catch(()=>{});
+    } else {
+      video.src = url; video.play().catch(()=>{});
+    }
+    showToast('▶️ Воспроизведение');
+  }
+
+  function setUrl(u) { urlInput.value = u; }
+
+  // ═══════════════════════════════════════
+  //  Cast SDK v3 (Исправленная инициализация)
+  // ═══════════════════════════════════════
+  if (!isFile) {
+    window['__onGCastApiAvailable'] = function(isAvailable) {
+      if (!isAvailable) {
+        statusEl.textContent = '❌ Cast не поддерживается';
+        return;
+      }
+      try {
+        castContext = cast.framework.CastContext.getInstance();
+        castContext.setOptions({
+          receiverApplicationId: chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,
+          autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED
+        });
+
+        // ✅ Используем стабильный ContextEventType вместо getSessionManager()
+        castContext.addEventListener(
+          cast.framework.ContextEventType.SESSION_STATE_CHANGED,
+          onCastSessionChange
+        );
+        statusEl.textContent = '🔍 Нажмите иконку Cast';
+      } catch (e) {
+        console.warn('Cast init failed:', e);
+        statusEl.textContent = '⚠️ Cast SDK ошибка';
+      }
+    };
+
+    function onCastSessionChange(event) {
+      if (event.sessionState === cast.framework.SessionState.SESSION_STARTED) {
+        currentSession = castContext.getCurrentSession();
+        const dev = currentSession.getDevice();
+        statusEl.innerHTML = `✅ <strong>${escapeHtml(dev.friendlyName)}</strong>`;
+        statusEl.className = 'cast-status connected';
+        showToast(`Подключено: ${dev.friendlyName}`, 'success');
+      } 
+      else if (event.sessionState === cast.framework.SessionState.SESSION_ENDED) {
+        currentSession = null;
+        statusEl.textContent = '🔍 Нажмите иконку Cast';
+        statusEl.className = 'cast-status';
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════
+  //  Smart Play Handler
+  // ═══════════════════════════════════════
+  function handlePlay() {
+    if (currentSession) castToTV();
+    else playLocal();
+  }
+
+  function castToTV() {
+    const url = urlInput.value.trim();
+    if (!currentSession || !url) return showToast('Ошибка кастинга', 'error');
+    
+    const type = getMimeType(url);
+    const info = new chrome.cast.media.MediaInfo(url, type);
+    const meta = new chrome.cast.media.GenericMediaMetadata();
+    meta.title = decodeURIComponent(url.split('/').pop().split('?')[0] || 'Video');
+    info.metadata = meta;
+    info.streamType = url.includes('.m3u8') 
+      ? chrome.cast.media.StreamType.LIVE 
+      : chrome.cast.media.StreamType.BUFFERED;
+      
+    const req = new chrome.cast.media.LoadRequest(info);
+    req.autoplay = true;
+    
+    statusEl.textContent = '🔄 Запуск на ТВ...';
+    currentSession.loadMedia(req)
+      .then(() => {
+        statusEl.textContent = '▶️ Трансляция активна';
+        showToast('▶️ Воспроизводится на ТВ', 'success');
+      })
+      .catch(err => {
+        console.error(err);
+        statusEl.textContent = '❌ Ошибка кастинга';
+        showToast(err.description || 'Failed to cast', 'error');
+      });
+  }
+
+  // ═══════════════════════════════════════
+  //  Helpers
+  // ═══════════════════════════════════════
+  function getMimeType(url) {
+    const ext = url.toLowerCase().split('?')[0].split('.').pop();
+    return {
+      'mp4':'video/mp4','m4v':'video/mp4','mov':'video/mp4',
+      'webm':'video/webm','ogg':'video/ogv','m3u8':'application/x-mpegURL'
+    }[ext] || 'video/mp4';
+  }
+  function escapeHtml(s) { const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+  urlInput.addEventListener('keydown', e => { if(e.key==='Enter') handlePlay(); });
+</script>
+
+</body>
+</html>
