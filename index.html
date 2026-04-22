@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Video Cast Player</title>
-  <!-- Cast SDK v3 -->
   <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -36,6 +35,7 @@
     }
     .badge.active { background: #00c853; color: #000; }
     .badge.disabled { background: #ff5252; color: #fff; }
+    .badge.warning { background: #fdcb6e; color: #000; }
 
     /* Cast Button Area */
     .cast-area {
@@ -61,7 +61,6 @@
       gap: 8px;
     }
     
-    /* Custom Cast Button */
     .cast-btn {
       display: flex;
       align-items: center;
@@ -78,31 +77,30 @@
     }
     .cast-btn:active { transform: scale(0.97); }
     .cast-btn:hover { opacity: 0.9; }
-    .cast-btn svg {
-      width: 20px;
-      height: 20px;
-      fill: currentColor;
-    }
-    .cast-btn.connected {
-      background: linear-gradient(135deg, #00c853, #00e676);
-      color: #000;
-    }
-    .cast-btn.connecting {
-      background: linear-gradient(135deg, #fdcb6e, #f39c12);
-      animation: pulse 1.5s ease-in-out infinite;
-    }
+    .cast-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .cast-btn svg { width: 20px; height: 20px; fill: currentColor; }
+    .cast-btn.connected { background: linear-gradient(135deg, #00c853, #00e676); color: #000; }
+    .cast-btn.connecting { background: linear-gradient(135deg, #fdcb6e, #f39c12); animation: pulse 1.5s ease-in-out infinite; }
     
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.6; }
-    }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
     
-    .cast-status {
-      font-size: 0.8rem;
-      color: #888;
-      padding: 0 4px;
-    }
+    .cast-status { font-size: 0.8rem; color: #888; padding: 0 4px; }
     .cast-status.connected { color: #00c853; }
+
+    /* Info Box */
+    .info-box {
+      background: rgba(255,203,110,0.1);
+      border-left: 3px solid #fdcb6e;
+      border-radius: 10px;
+      padding: 12px 16px;
+      margin-bottom: 16px;
+      font-size: 0.85rem;
+    }
+    .info-box h3 { color: #fdcb6e; margin-bottom: 8px; font-size: 0.9rem; }
+    .info-box ul { padding-left: 20px; margin: 8px 0; }
+    .info-box li { margin-bottom: 4px; color: #ccc; }
+    .info-box code { background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; color: #00cec9; }
+    .info-box a { color: #6c5ce7; text-decoration: none; }
 
     .input-group {
       background: rgba(255,255,255,0.05);
@@ -112,9 +110,9 @@
       border: 1px solid rgba(255,255,255,0.1);
     }
     .input-group label { display: block; font-size: 0.8rem; color: #888; margin-bottom: 8px; }
-    .input-row { display: flex; gap: 8px; }
+    .input-row { display: flex; gap: 8px; flex-wrap: wrap; }
     .input-row input {
-      flex: 1; padding: 12px; border-radius: 10px;
+      flex: 1; min-width: 200px; padding: 12px; border-radius: 10px;
       border: 1px solid rgba(255,255,255,0.2);
       background: rgba(0,0,0,0.3); color: #fff; font-size: 0.9rem; outline: none;
     }
@@ -160,6 +158,17 @@
     <span class="badge" id="protocolBadge">Загрузка...</span>
   </div>
 
+  <!-- Info for mobile users -->
+  <div class="info-box" id="mobileInfo" style="display:none;">
+    <h3>📱 Chromecast с телефона</h3>
+    <ul>
+      <li>Cast <strong>не работает</strong> при открытии файла напрямую</li>
+      <li><strong>Решение 1:</strong> Загрузите файл на <a href="#" onclick="showHostingInfo(); return false;">бесплатный хостинг</a> (HTTPS)</li>
+      <li><strong>Решение 2:</strong> Используйте приложение "HTTP Server" на телефоне</li>
+      <li><strong>Решение 3:</strong> Откройте через локальный сервер на ПК</li>
+    </ul>
+  </div>
+
   <!-- Cast Button Area -->
   <div class="cast-area" id="castArea">
     <div class="cast-header">
@@ -169,14 +178,14 @@
         </svg>
         Chromecast
       </span>
-      <button class="cast-btn" id="castBtn" onclick="toggleCast()">
+      <button class="cast-btn" id="castBtn" onclick="toggleCast()" disabled>
         <svg viewBox="0 0 24 24">
           <path d="M1 18v3h3c0-1.66-1.34-3-3-3zm0-4v2c2.76 0 5 2.24 5 5h2c0-3.87-3.13-7-7-7zm0-4v2c4.97 0 9 4.03 9 9h2c0-6.08-4.93-11-11-11zm20-7H3c-1.1 0-2 .9-2 2v3h2V5h18v14h-7v2h7c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/>
         </svg>
-        <span id="castBtnText">Подключить</span>
+        <span id="castBtnText">Недоступно</span>
       </button>
     </div>
-    <div class="cast-status" id="castStatus">Нажмите для поиска устройств</div>
+    <div class="cast-status" id="castStatus">Загрузка Cast SDK...</div>
   </div>
 
   <div class="input-group">
@@ -210,18 +219,34 @@
   // ═══════════════════════════════════════
   const protocol = window.location.protocol;
   const isFile = protocol === 'file:';
+  const isLocalhost = protocol === 'http:' && (location.hostname === 'localhost' || location.hostname === '127.0.0.1');
+  const isHttps = protocol === 'https:';
+  
   const badge = document.getElementById('protocolBadge');
   const castArea = document.getElementById('castArea');
   const castBtn = document.getElementById('castBtn');
   const castBtnText = document.getElementById('castBtnText');
+  const mobileInfo = document.getElementById('mobileInfo');
+  
+  // Check if mobile
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
   
   if (isFile) {
-    badge.textContent = '📁 Локальный файл';
+    badge.textContent = '📁 Файл (Cast отключен)';
     badge.className = 'badge disabled';
-    castArea.classList.add('hidden');
-  } else {
-    badge.textContent = '🌐 Веб-сервер';
+    if (isMobile) {
+      mobileInfo.style.display = 'block';
+    }
+    castArea.style.display = 'none';
+  } else if (isHttps || isLocalhost) {
+    badge.textContent = isMobile ? '📱 HTTPS (Cast доступен)' : '🌐 Веб-сервер';
     badge.className = 'badge active';
+  } else {
+    badge.textContent = '⚠️ HTTP (нужен HTTPS)';
+    badge.className = 'badge warning';
+    if (isMobile) {
+      mobileInfo.style.display = 'block';
+    }
   }
 
   // ═══════════════════════════════════════
@@ -230,6 +255,7 @@
   let castContext = null;
   let currentSession = null;
   let hlsInstance = null;
+  let castAvailable = false;
   
   const video = document.getElementById('videoPlayer');
   const placeholder = document.getElementById('placeholder');
@@ -274,13 +300,14 @@
   function setUrl(u) { urlInput.value = u; }
 
   // ═══════════════════════════════════════
-  //  Cast SDK - Custom Button (v3 Fixed)
+  //  Cast SDK Initialization
   // ═══════════════════════════════════════
-  if (!isFile) {
+  if (!isFile && (isHttps || isLocalhost)) {
     window['__onGCastApiAvailable'] = function(isAvailable) {
       if (!isAvailable) {
-        statusEl.textContent = '❌ Cast не поддерживается';
+        statusEl.textContent = '❌ Cast не поддерживается браузером';
         castBtn.disabled = true;
+        castBtnText.textContent = 'Недоступно';
         return;
       }
       
@@ -291,18 +318,20 @@
           autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED
         });
 
-        // ✅ Используем правильный event type
         castContext.addEventListener(
           cast.framework.CastContextEventType.SESSION_STATE_CHANGED,
           onCastSessionChange
         );
         
+        castAvailable = true;
+        castBtn.disabled = false;
+        castBtnText.textContent = 'Подключить';
         statusEl.textContent = 'Нажмите для поиска устройств';
         console.log('✅ Cast SDK initialized');
         
       } catch (e) {
         console.error('Cast init error:', e);
-        statusEl.textContent = '⚠️ Cast недоступен';
+        statusEl.textContent = '⚠️ Ошибка инициализации';
         castBtn.disabled = true;
       }
     };
@@ -310,7 +339,6 @@
     function onCastSessionChange(event) {
       if (!event) return;
       
-      // State: CONNECTED
       if (event.sessionState === cast.framework.SessionState.SESSION_STARTED) {
         currentSession = castContext.getCurrentSession();
         if (currentSession) {
@@ -323,7 +351,6 @@
           showToast(`Подключено: ${dev.friendlyName}`, 'success');
         }
       } 
-      // State: DISCONNECTED
       else if (event.sessionState === cast.framework.SessionState.SESSION_ENDED ||
                event.sessionState === cast.framework.SessionState.SESSION_SUSPENDED) {
         currentSession = null;
@@ -333,7 +360,6 @@
         castBtn.classList.remove('connecting');
         castBtnText.textContent = 'Подключить';
       }
-      // State: CONNECTING
       else if (event.sessionState === cast.framework.SessionState.SESSION_STARTING) {
         castBtn.classList.add('connecting');
         castBtnText.textContent = 'Подключение...';
@@ -343,27 +369,19 @@
   }
 
   // ═══════════════════════════════════════
-  //  Toggle Cast (ИСПРАВЛЕНО)
+  //  Toggle Cast
   // ═══════════════════════════════════════
   function toggleCast() {
-    if (!castContext) {
-      showToast('Cast SDK не загружен', 'error');
+    if (!castAvailable || !castContext) {
+      showToast('Cast SDK не настроен', 'error');
       return;
     }
 
     if (currentSession) {
-      // Отключить
       castContext.endCurrentSession();
     } else {
-      // Подключить
-      // ✅ В v3 SDK используется requestSession() вместо getSessionManager()
       castContext.requestSession()
-        .then(() => {
-          // Успешный запрос сессии (но еще не старт)
-          console.log('Session requested');
-        })
         .catch((error) => {
-          // Обработка отмены или ошибки
           if (error.code !== 'cancel') {
             console.error('Cast error', error);
             showToast('Не удалось подключиться', 'error');
@@ -434,6 +452,17 @@
     const d=document.createElement('div'); 
     d.textContent=s; 
     return d.innerHTML; 
+  }
+
+  function showHostingInfo() {
+    alert('Бесплатные хостинги для Chromecast:\n\n' +
+          '1️⃣ GitHub Pages (рекомендуется)\n' +
+          '   github.com → New repo → Upload file → Settings → Pages\n\n' +
+          '2️⃣ Netlify Drop\n' +
+          '   netlify.com/drop → Перетащите файл\n\n' +
+          '3️⃣ Tiiny.host\n' +
+          '   tiiny.host → Upload → Get link\n\n' +
+          'После загрузки откройте ссылку на телефоне — Cast заработает!');
   }
 
   urlInput.addEventListener('keydown', e => { if(e.key==='Enter') handlePlay(); });
