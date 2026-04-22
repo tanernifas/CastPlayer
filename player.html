@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Video Cast Player</title>
-  <!-- Cast SDK v3 -->
   <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -109,13 +108,11 @@
     <span class="badge" id="protocolBadge">Загрузка...</span>
   </div>
 
-  <!-- Cast Button -->
   <div class="cast-area" id="castArea">
     <google-cast-launcher></google-cast-launcher>
     <div class="cast-status" id="castStatus"> Ожидание Cast API...</div>
   </div>
 
-  <!-- URL Input -->
   <div class="input-group">
     <label>🔗 Ссылка на видео</label>
     <div class="input-row">
@@ -130,7 +127,6 @@
     </div>
   </div>
 
-  <!-- Player -->
   <div class="player-wrapper">
     <video id="videoPlayer" controls playsinline webkit-playsinline></video>
     <div class="placeholder" id="placeholder">
@@ -210,7 +206,7 @@
   function setUrl(u) { urlInput.value = u; }
 
   // ═══════════════════════════════════════
-  //  Cast SDK v3 (Исправленная инициализация)
+  //  Cast SDK v3 - ИСПРАВЛЕННАЯ ВЕРСИЯ
   // ═══════════════════════════════════════
   if (!isFile) {
     window['__onGCastApiAvailable'] = function(isAvailable) {
@@ -218,34 +214,46 @@
         statusEl.textContent = '❌ Cast не поддерживается';
         return;
       }
+      
       try {
+        // Получаем контекст
         castContext = cast.framework.CastContext.getInstance();
+        
+        // Настраиваем
         castContext.setOptions({
           receiverApplicationId: chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,
           autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED
         });
 
-        // ✅ Используем стабильный ContextEventType вместо getSessionManager()
+        // ✅ ПРАВИЛЬНЫЙ СПОСОБ: используем CastContextEventType
         castContext.addEventListener(
-          cast.framework.ContextEventType.SESSION_STATE_CHANGED,
+          cast.framework.CastContextEventType.SESSION_STATE_CHANGED,
           onCastSessionChange
         );
+        
         statusEl.textContent = '🔍 Нажмите иконку Cast';
+        console.log('✅ Cast SDK initialized successfully');
+        
       } catch (e) {
-        console.warn('Cast init failed:', e);
-        statusEl.textContent = '⚠️ Cast SDK ошибка';
+        console.error('Cast init error:', e);
+        statusEl.textContent = '⚠️ Cast недоступен';
       }
     };
 
     function onCastSessionChange(event) {
+      if (!event) return;
+      
       if (event.sessionState === cast.framework.SessionState.SESSION_STARTED) {
         currentSession = castContext.getCurrentSession();
-        const dev = currentSession.getDevice();
-        statusEl.innerHTML = `✅ <strong>${escapeHtml(dev.friendlyName)}</strong>`;
-        statusEl.className = 'cast-status connected';
-        showToast(`Подключено: ${dev.friendlyName}`, 'success');
+        if (currentSession) {
+          const dev = currentSession.getDevice();
+          statusEl.innerHTML = `✅ <strong>${escapeHtml(dev.friendlyName)}</strong>`;
+          statusEl.className = 'cast-status connected';
+          showToast(`Подключено: ${dev.friendlyName}`, 'success');
+        }
       } 
-      else if (event.sessionState === cast.framework.SessionState.SESSION_ENDED) {
+      else if (event.sessionState === cast.framework.SessionState.SESSION_ENDED ||
+               event.sessionState === cast.framework.SessionState.SESSION_SUSPENDED) {
         currentSession = null;
         statusEl.textContent = '🔍 Нажмите иконку Cast';
         statusEl.className = 'cast-status';
@@ -265,29 +273,37 @@
     const url = urlInput.value.trim();
     if (!currentSession || !url) return showToast('Ошибка кастинга', 'error');
     
-    const type = getMimeType(url);
-    const info = new chrome.cast.media.MediaInfo(url, type);
-    const meta = new chrome.cast.media.GenericMediaMetadata();
-    meta.title = decodeURIComponent(url.split('/').pop().split('?')[0] || 'Video');
-    info.metadata = meta;
-    info.streamType = url.includes('.m3u8') 
-      ? chrome.cast.media.StreamType.LIVE 
-      : chrome.cast.media.StreamType.BUFFERED;
+    try {
+      const type = getMimeType(url);
+      const info = new chrome.cast.media.MediaInfo(url, type);
       
-    const req = new chrome.cast.media.LoadRequest(info);
-    req.autoplay = true;
-    
-    statusEl.textContent = '🔄 Запуск на ТВ...';
-    currentSession.loadMedia(req)
-      .then(() => {
-        statusEl.textContent = '▶️ Трансляция активна';
-        showToast('▶️ Воспроизводится на ТВ', 'success');
-      })
-      .catch(err => {
-        console.error(err);
-        statusEl.textContent = '❌ Ошибка кастинга';
-        showToast(err.description || 'Failed to cast', 'error');
-      });
+      const meta = new chrome.cast.media.GenericMediaMetadata();
+      meta.title = decodeURIComponent(url.split('/').pop().split('?')[0] || 'Video');
+      info.metadata = meta;
+      
+      info.streamType = url.includes('.m3u8') 
+        ? chrome.cast.media.StreamType.LIVE 
+        : chrome.cast.media.StreamType.BUFFERED;
+        
+      const req = new chrome.cast.media.LoadRequest(info);
+      req.autoplay = true;
+      
+      statusEl.textContent = '🔄 Запуск на ТВ...';
+      
+      currentSession.loadMedia(req)
+        .then(() => {
+          statusEl.textContent = '▶️ Трансляция активна';
+          showToast('▶️ Воспроизводится на ТВ', 'success');
+        })
+        .catch(err => {
+          console.error('Cast error:', err);
+          statusEl.textContent = '❌ Ошибка кастинга';
+          showToast(err.description || 'Failed to cast', 'error');
+        });
+    } catch (e) {
+      console.error('Cast error:', e);
+      showToast('Ошибка: ' + e.message, 'error');
+    }
   }
 
   // ═══════════════════════════════════════
@@ -300,7 +316,12 @@
       'webm':'video/webm','ogg':'video/ogv','m3u8':'application/x-mpegURL'
     }[ext] || 'video/mp4';
   }
-  function escapeHtml(s) { const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+  
+  function escapeHtml(s) { 
+    const d=document.createElement('div'); 
+    d.textContent=s; 
+    return d.innerHTML; 
+  }
 
   urlInput.addEventListener('keydown', e => { if(e.key==='Enter') handlePlay(); });
 </script>
