@@ -2,130 +2,108 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Video Cast Player</title>
-  <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Video Stream - Universal Cast</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-family: system-ui, sans-serif;
       background: #0f0f1a;
-      color: #e8e8f0;
+      color: #fff;
       min-height: 100vh;
       padding: 16px;
     }
     .container { max-width: 640px; margin: 0 auto; }
     
-    .header { text-align: center; padding: 20px 0 16px; }
+    .header { text-align: center; padding: 20px 0; }
     .header h1 {
       font-size: 1.4rem;
-      margin-bottom: 6px;
       background: linear-gradient(135deg, #6c5ce7, #00cec9);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
+      margin-bottom: 8px;
     }
-    .badge {
+    
+    .mode-badge {
       display: inline-block;
-      padding: 4px 10px;
-      border-radius: 12px;
-      font-size: 0.7rem;
+      padding: 6px 14px;
+      border-radius: 20px;
+      background: linear-gradient(135deg, #6c5ce7, #7f70f0);
+      font-size: 0.8rem;
       font-weight: 600;
-      background: #2a2a4a;
-      color: #888;
+      margin-bottom: 16px;
     }
-    .badge.active { background: #00c853; color: #000; }
-    .badge.disabled { background: #ff5252; color: #fff; }
-    .badge.warning { background: #fdcb6e; color: #000; }
 
-    /* Cast Button Area */
-    .cast-area {
+    /* URL Share Section */
+    .share-section {
       background: rgba(255,255,255,0.05);
       border-radius: 14px;
       padding: 16px;
       margin-bottom: 16px;
       border: 1px solid rgba(255,255,255,0.1);
     }
-    .cast-area.hidden { display: none; }
     
-    .cast-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 10px;
-    }
-    .cast-title {
-      font-size: 0.85rem;
-      color: #888;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    
-    .cast-btn {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 10px 16px;
-      background: linear-gradient(135deg, #6c5ce7, #7f70f0);
-      border: none;
-      border-radius: 10px;
-      color: white;
+    .share-title {
       font-size: 0.9rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: transform 0.2s, opacity 0.2s;
+      color: #888;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
-    .cast-btn:active { transform: scale(0.97); }
-    .cast-btn:hover { opacity: 0.9; }
-    .cast-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-    .cast-btn svg { width: 20px; height: 20px; fill: currentColor; }
-    .cast-btn.connected { background: linear-gradient(135deg, #00c853, #00e676); color: #000; }
-    .cast-btn.connecting { background: linear-gradient(135deg, #fdcb6e, #f39c12); animation: pulse 1.5s ease-in-out infinite; }
     
-    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
-    
-    .cast-status { font-size: 0.8rem; color: #888; padding: 0 4px; }
-    .cast-status.connected { color: #00c853; }
-
-    /* Info Box */
-    .info-box {
-      background: rgba(255,203,110,0.1);
-      border-left: 3px solid #fdcb6e;
+    .qr-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      padding: 16px;
+      background: #fff;
       border-radius: 10px;
-      padding: 12px 16px;
-      margin-bottom: 16px;
-      font-size: 0.85rem;
+      margin-bottom: 12px;
     }
-    .info-box h3 { color: #fdcb6e; margin-bottom: 8px; font-size: 0.9rem; }
-    .info-box ul { padding-left: 20px; margin: 8px 0; }
-    .info-box li { margin-bottom: 4px; color: #ccc; }
-    .info-box code { background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; color: #00cec9; }
-    .info-box a { color: #6c5ce7; text-decoration: none; }
+    
+    #qrcode {
+      padding: 10px;
+    }
+    
+    .share-url {
+      font-size: 0.85rem;
+      color: #6c5ce7;
+      word-break: break-all;
+      text-align: center;
+      font-family: monospace;
+    }
+    
+    .btn-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
 
     .input-group {
       background: rgba(255,255,255,0.05);
       border-radius: 14px;
       padding: 14px;
       margin-bottom: 16px;
-      border: 1px solid rgba(255,255,255,0.1);
     }
     .input-group label { display: block; font-size: 0.8rem; color: #888; margin-bottom: 8px; }
     .input-row { display: flex; gap: 8px; flex-wrap: wrap; }
     .input-row input {
       flex: 1; min-width: 200px; padding: 12px; border-radius: 10px;
       border: 1px solid rgba(255,255,255,0.2);
-      background: rgba(0,0,0,0.3); color: #fff; font-size: 0.9rem; outline: none;
+      background: rgba(0,0,0,0.3); color: #fff; font-size: 0.9rem;
     }
-    .input-row input:focus { border-color: #6c5ce7; }
     .btn {
-      padding: 12px 18px; background: linear-gradient(135deg, #6c5ce7, #7f70f0);
-      color: white; border: none; border-radius: 10px; cursor: pointer;
-      font-weight: 600; font-size: 0.9rem; white-space: nowrap;
+      padding: 12px 18px;
+      background: linear-gradient(135deg, #6c5ce7, #7f70f0);
+      color: white; border: none; border-radius: 10px;
+      cursor: pointer; font-weight: 600; font-size: 0.9rem;
     }
     .btn:active { transform: scale(0.97); }
-    .quick-links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-    .quick-links .btn { padding: 7px 12px; font-size: 0.8rem; background: rgba(255,255,255,0.1); }
-
+    
     .player-wrapper {
       background: #000; border-radius: 14px; overflow: hidden;
       position: relative; aspect-ratio: 16/9;
@@ -136,336 +114,172 @@
       position: absolute; inset: 0; display: flex; flex-direction: column;
       align-items: center; justify-content: center; color: #555; gap: 10px;
     }
-    .placeholder svg { width: 56px; height: 56px; fill: #333; }
-
-    .toast {
-      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(100px);
-      background: #1a1a2e; border: 1px solid rgba(255,255,255,0.2);
-      padding: 10px 18px; border-radius: 10px; font-size: 0.85rem;
-      z-index: 9999; transition: transform 0.3s; pointer-events: none;
-      max-width: 90%; text-align: center;
+    
+    .info-box {
+      background: rgba(108,92,231,0.1);
+      border-left: 3px solid #6c5ce7;
+      border-radius: 10px;
+      padding: 12px 16px;
+      margin-bottom: 16px;
+      font-size: 0.85rem;
+      line-height: 1.6;
     }
-    .toast.show { transform: translateX(-50%) translateY(0); }
-    .toast.error { border-color: #ff5252; }
-    .toast.success { border-color: #00c853; }
+    .info-box h3 { color: #6c5ce7; margin-bottom: 8px; }
+    .info-box ol { padding-left: 20px; margin: 8px 0; }
+    .info-box li { margin-bottom: 4px; color: #ccc; }
   </style>
 </head>
 <body>
 
 <div class="container">
   <div class="header">
-    <h1>📺 Video Player</h1>
-    <span class="badge" id="protocolBadge">Загрузка...</span>
+    <h1>📺 Universal Video Stream</h1>
+    <div class="mode-badge">🌐 Работает на любом устройстве</div>
   </div>
 
-  <!-- Info for mobile users -->
-  <div class="info-box" id="mobileInfo" style="display:none;">
-    <h3>📱 Chromecast с телефона</h3>
-    <ul>
-      <li>Cast <strong>не работает</strong> при открытии файла напрямую</li>
-      <li><strong>Решение 1:</strong> Загрузите файл на <a href="#" onclick="showHostingInfo(); return false;">бесплатный хостинг</a> (HTTPS)</li>
-      <li><strong>Решение 2:</strong> Используйте приложение "HTTP Server" на телефоне</li>
-      <li><strong>Решение 3:</strong> Откройте через локальный сервер на ПК</li>
-    </ul>
-  </div>
-
-  <!-- Cast Button Area -->
-  <div class="cast-area" id="castArea">
-    <div class="cast-header">
-      <span class="cast-title">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M1 18v3h3c0-1.66-1.34-3-3-3zm0-4v2c2.76 0 5 2.24 5 5h2c0-3.87-3.13-7-7-7zm0-4v2c4.97 0 9 4.03 9 9h2c0-6.08-4.93-11-11-11zm20-7H3c-1.1 0-2 .9-2 2v3h2V5h18v14h-7v2h7c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/>
-        </svg>
-        Chromecast
-      </span>
-      <button class="cast-btn" id="castBtn" onclick="toggleCast()" disabled>
-        <svg viewBox="0 0 24 24">
-          <path d="M1 18v3h3c0-1.66-1.34-3-3-3zm0-4v2c2.76 0 5 2.24 5 5h2c0-3.87-3.13-7-7-7zm0-4v2c4.97 0 9 4.03 9 9h2c0-6.08-4.93-11-11-11zm20-7H3c-1.1 0-2 .9-2 2v3h2V5h18v14h-7v2h7c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/>
-        </svg>
-        <span id="castBtnText">Недоступно</span>
-      </button>
+  <!-- Share Section -->
+  <div class="share-section">
+    <div class="share-title">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/>
+      </svg>
+      Отправить на ТВ (сканируйте QR-код)
     </div>
-    <div class="cast-status" id="castStatus">Загрузка Cast SDK...</div>
+    <div class="qr-container">
+      <div id="qrcode"></div>
+      <div class="share-url" id="shareUrl">Загрузка...</div>
+    </div>
+    <div class="btn-row">
+      <button class="btn" onclick="updateQR()">🔄 Обновить QR</button>
+      <button class="btn" onclick="copyUrl()">📋 Копировать ссылку</button>
+    </div>
   </div>
 
+  <!-- Info -->
+  <div class="info-box">
+    <h3>📱 Как транслировать на Android TV:</h3>
+    <ol>
+      <li>Откройте этот файл на телефоне/ПК</li>
+      <li>Вставьте ссылку на видео ниже</li>
+      <li>На ТВ: откройте браузер и отсканируйте QR-код</li>
+      <li>Или введите ссылку вручную на ТВ</li>
+      <li>Видео откроется на ТВ и начнёт воспроизведение</li>
+    </ol>
+  </div>
+
+  <!-- Video Input -->
   <div class="input-group">
     <label>🔗 Ссылка на видео</label>
     <div class="input-row">
       <input type="text" id="videoUrl" placeholder="https://example.com/video.mp4"
-             value="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4">
-      <button class="btn" id="playBtn" onclick="handlePlay()">▶ Play</button>
-    </div>
-    <div class="quick-links">
-      <button class="btn" onclick="setUrl('https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4')">Big Buck Bunny</button>
-      <button class="btn" onclick="setUrl('https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4')">Sintel</button>
-      <button class="btn" onclick="setUrl('https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8')">HLS Test</button>
+             value="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
+             onchange="updateQR()">
+      <button class="btn" onclick="playLocal()">▶ Play локально</button>
     </div>
   </div>
 
+  <!-- Player -->
   <div class="player-wrapper">
-    <video id="videoPlayer" controls playsinline webkit-playsinline></video>
+    <video id="videoPlayer" controls playsinline></video>
     <div class="placeholder" id="placeholder">
-      <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-      <p>Введите ссылку и нажмите Play</p>
+      <svg width="56" height="56" viewBox="0 0 24 24" fill="#333">
+        <path d="M8 5v14l11-7z"/>
+      </svg>
+      <p>Введите ссылку для воспроизведения</p>
     </div>
   </div>
 </div>
 
-<div class="toast" id="toast"></div>
-
 <script>
-  // ═══════════════════════════════════════
-  //  Protocol Detection
-  // ═══════════════════════════════════════
-  const protocol = window.location.protocol;
-  const isFile = protocol === 'file:';
-  const isLocalhost = protocol === 'http:' && (location.hostname === 'localhost' || location.hostname === '127.0.0.1');
-  const isHttps = protocol === 'https:';
-  
-  const badge = document.getElementById('protocolBadge');
-  const castArea = document.getElementById('castArea');
-  const castBtn = document.getElementById('castBtn');
-  const castBtnText = document.getElementById('castBtnText');
-  const mobileInfo = document.getElementById('mobileInfo');
-  
-  // Check if mobile
-  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-  
-  if (isFile) {
-    badge.textContent = '📁 Файл (Cast отключен)';
-    badge.className = 'badge disabled';
-    if (isMobile) {
-      mobileInfo.style.display = 'block';
-    }
-    castArea.style.display = 'none';
-  } else if (isHttps || isLocalhost) {
-    badge.textContent = isMobile ? '📱 HTTPS (Cast доступен)' : '🌐 Веб-сервер';
-    badge.className = 'badge active';
-  } else {
-    badge.textContent = '⚠️ HTTP (нужен HTTPS)';
-    badge.className = 'badge warning';
-    if (isMobile) {
-      mobileInfo.style.display = 'block';
-    }
-  }
-
-  // ═══════════════════════════════════════
-  //  State & DOM
-  // ═══════════════════════════════════════
-  let castContext = null;
-  let currentSession = null;
-  let hlsInstance = null;
-  let castAvailable = false;
-  
   const video = document.getElementById('videoPlayer');
   const placeholder = document.getElementById('placeholder');
-  const toast = document.getElementById('toast');
   const urlInput = document.getElementById('videoUrl');
-  const statusEl = document.getElementById('castStatus');
+  let qrCode = null;
 
-  // ═══════════════════════════════════════
-  //  Toast
-  // ═══════════════════════════════════════
-  function showToast(msg, type = 'info', duration = 3000) {
-    toast.textContent = msg;
-    toast.className = `toast ${type}`;
-    requestAnimationFrame(() => toast.classList.add('show'));
-    setTimeout(() => toast.classList.remove('show'), duration);
+  // Generate current page URL with video parameter
+  function getCurrentUrl() {
+    const baseUrl = window.location.href.split('?')[0];
+    const videoUrl = encodeURIComponent(urlInput.value);
+    return `${baseUrl}?url=${videoUrl}`;
   }
 
-  // ═══════════════════════════════════════
-  //  Local Playback
-  // ═══════════════════════════════════════
+  // Generate QR Code
+  function updateQR() {
+    const container = document.getElementById('qrcode');
+    const urlDisplay = document.getElementById('shareUrl');
+    const shareUrl = getCurrentUrl();
+    
+    container.innerHTML = '';
+    qrCode = new QRCode(container, {
+      text: shareUrl,
+      width: 180,
+      height: 180,
+      colorDark: '#000000',
+      colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.M
+    });
+    
+    urlDisplay.textContent = shareUrl;
+  }
+
+  function copyUrl() {
+    const url = getCurrentUrl();
+    navigator.clipboard.writeText(url).then(() => {
+      showToast('📋 Ссылка скопирована!');
+    }).catch(() => {
+      showToast('❌ Не удалось скопировать', 'error');
+    });
+  }
+
   function playLocal() {
     const url = urlInput.value.trim();
     if (!url) return showToast('Введите ссылку', 'error');
     
-    if (hlsInstance) { hlsInstance.destroy(); hlsInstance = null; }
     placeholder.style.display = 'none';
-    
-    const isHls = url.includes('.m3u8');
-    if (isHls && window.Hls && Hls.isSupported()) {
-      hlsInstance = new Hls();
-      hlsInstance.loadSource(url);
-      hlsInstance.attachMedia(video);
-      hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => video.play().catch(()=>{}));
-    } else if (isHls && video.canPlayType('application/vnd.apple.mpegurl')) {
-      video.src = url; video.play().catch(()=>{});
-    } else {
-      video.src = url; video.play().catch(()=>{});
-    }
+    video.src = url;
+    video.play().catch(() => {});
     showToast('▶️ Воспроизведение');
   }
 
-  function setUrl(u) { urlInput.value = u; }
-
-  // ═══════════════════════════════════════
-  //  Cast SDK Initialization
-  // ═══════════════════════════════════════
-  if (!isFile && (isHttps || isLocalhost)) {
-    window['__onGCastApiAvailable'] = function(isAvailable) {
-      if (!isAvailable) {
-        statusEl.textContent = '❌ Cast не поддерживается браузером';
-        castBtn.disabled = true;
-        castBtnText.textContent = 'Недоступно';
-        return;
-      }
-      
-      try {
-        castContext = cast.framework.CastContext.getInstance();
-        castContext.setOptions({
-          receiverApplicationId: chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,
-          autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED
-        });
-
-        castContext.addEventListener(
-          cast.framework.CastContextEventType.SESSION_STATE_CHANGED,
-          onCastSessionChange
-        );
-        
-        castAvailable = true;
-        castBtn.disabled = false;
-        castBtnText.textContent = 'Подключить';
-        statusEl.textContent = 'Нажмите для поиска устройств';
-        console.log('✅ Cast SDK initialized');
-        
-      } catch (e) {
-        console.error('Cast init error:', e);
-        statusEl.textContent = '⚠️ Ошибка инициализации';
-        castBtn.disabled = true;
-      }
-    };
-
-    function onCastSessionChange(event) {
-      if (!event) return;
-      
-      if (event.sessionState === cast.framework.SessionState.SESSION_STARTED) {
-        currentSession = castContext.getCurrentSession();
-        if (currentSession) {
-          const dev = currentSession.getDevice();
-          statusEl.innerHTML = `✅ <strong>${escapeHtml(dev.friendlyName)}</strong>`;
-          statusEl.className = 'cast-status connected';
-          castBtn.classList.add('connected');
-          castBtn.classList.remove('connecting');
-          castBtnText.textContent = 'Отключить';
-          showToast(`Подключено: ${dev.friendlyName}`, 'success');
-        }
-      } 
-      else if (event.sessionState === cast.framework.SessionState.SESSION_ENDED ||
-               event.sessionState === cast.framework.SessionState.SESSION_SUSPENDED) {
-        currentSession = null;
-        statusEl.textContent = 'Нажмите для поиска устройств';
-        statusEl.className = 'cast-status';
-        castBtn.classList.remove('connected');
-        castBtn.classList.remove('connecting');
-        castBtnText.textContent = 'Подключить';
-      }
-      else if (event.sessionState === cast.framework.SessionState.SESSION_STARTING) {
-        castBtn.classList.add('connecting');
-        castBtnText.textContent = 'Подключение...';
-        statusEl.textContent = '🔄 Подключение...';
-      }
-    }
+  function showToast(msg, type = 'info') {
+    const toast = document.createElement('div');
+    toast.textContent = msg;
+    toast.style.cssText = `
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: ${type === 'error' ? '#ff5252' : '#00c853'};
+      color: white;
+      padding: 12px 24px;
+      border-radius: 10px;
+      z-index: 9999;
+      font-size: 0.9rem;
+    `;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
   }
 
-  // ═══════════════════════════════════════
-  //  Toggle Cast
-  // ═══════════════════════════════════════
-  function toggleCast() {
-    if (!castAvailable || !castContext) {
-      showToast('Cast SDK не настроен', 'error');
-      return;
-    }
-
-    if (currentSession) {
-      castContext.endCurrentSession();
-    } else {
-      castContext.requestSession()
-        .catch((error) => {
-          if (error.code !== 'cancel') {
-            console.error('Cast error', error);
-            showToast('Не удалось подключиться', 'error');
-          }
-          castBtn.classList.remove('connecting');
-          castBtnText.textContent = 'Подключить';
-        });
-    }
-  }
-
-  // ═══════════════════════════════════════
-  //  Smart Play Handler
-  // ═══════════════════════════════════════
-  function handlePlay() {
-    if (currentSession) castToTV();
-    else playLocal();
-  }
-
-  function castToTV() {
-    const url = urlInput.value.trim();
-    if (!currentSession || !url) return showToast('Ошибка кастинга', 'error');
+  // Check if URL has video parameter (opened from QR)
+  window.addEventListener('load', () => {
+    const params = new URLSearchParams(window.location.search);
+    const videoUrl = params.get('url');
     
-    try {
-      const type = getMimeType(url);
-      const info = new chrome.cast.media.MediaInfo(url, type);
-      
-      const meta = new chrome.cast.media.GenericMediaMetadata();
-      meta.title = decodeURIComponent(url.split('/').pop().split('?')[0] || 'Video');
-      info.metadata = meta;
-      
-      info.streamType = url.includes('.m3u8') 
-        ? chrome.cast.media.StreamType.LIVE 
-        : chrome.cast.media.StreamType.BUFFERED;
-        
-      const req = new chrome.cast.media.LoadRequest(info);
-      req.autoplay = true;
-      
-      statusEl.textContent = '🔄 Запуск на ТВ...';
-      
-      currentSession.loadMedia(req)
-        .then(() => {
-          statusEl.textContent = '▶️ Трансляция активна';
-          showToast('▶️ Воспроизводится на ТВ', 'success');
-        })
-        .catch(err => {
-          console.error('Cast error:', err);
-          statusEl.textContent = '❌ Ошибка кастинга';
-          showToast(err.description || 'Failed to cast', 'error');
-        });
-    } catch (e) {
-      console.error('Cast error:', e);
-      showToast('Ошибка: ' + e.message, 'error');
+    if (videoUrl) {
+      urlInput.value = decodeURIComponent(videoUrl);
+      setTimeout(() => {
+        playLocal();
+      }, 500);
     }
-  }
+    
+    updateQR();
+  });
 
-  // ═══════════════════════════════════════
-  //  Helpers
-  // ═══════════════════════════════════════
-  function getMimeType(url) {
-    const ext = url.toLowerCase().split('?')[0].split('.').pop();
-    return {
-      'mp4':'video/mp4','m4v':'video/mp4','mov':'video/mp4',
-      'webm':'video/webm','ogg':'video/ogv','m3u8':'application/x-mpegURL'
-    }[ext] || 'video/mp4';
-  }
-  
-  function escapeHtml(s) { 
-    const d=document.createElement('div'); 
-    d.textContent=s; 
-    return d.innerHTML; 
-  }
-
-  function showHostingInfo() {
-    alert('Бесплатные хостинги для Chromecast:\n\n' +
-          '1️⃣ GitHub Pages (рекомендуется)\n' +
-          '   github.com → New repo → Upload file → Settings → Pages\n\n' +
-          '2️⃣ Netlify Drop\n' +
-          '   netlify.com/drop → Перетащите файл\n\n' +
-          '3️⃣ Tiiny.host\n' +
-          '   tiiny.host → Upload → Get link\n\n' +
-          'После загрузки откройте ссылку на телефоне — Cast заработает!');
-  }
-
-  urlInput.addEventListener('keydown', e => { if(e.key==='Enter') handlePlay(); });
+  // Update QR when URL changes
+  urlInput.addEventListener('input', () => {
+    clearTimeout(window.qrTimeout);
+    window.qrTimeout = setTimeout(updateQR, 500);
+  });
 </script>
 
 </body>
