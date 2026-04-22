@@ -36,20 +36,71 @@
     .badge.active { background: #00c853; color: #000; }
     .badge.disabled { background: #ff5252; color: #fff; }
 
+    /* Cast Button Area */
     .cast-area {
       background: rgba(255,255,255,0.05);
       border-radius: 14px;
       padding: 16px;
       margin-bottom: 16px;
-      text-align: center;
       border: 1px solid rgba(255,255,255,0.1);
     }
     .cast-area.hidden { display: none; }
-    google-cast-launcher {
-      width: 46px; height: 46px; cursor: pointer;
-      --connected-color: #00c853;
+    
+    .cast-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
     }
-    .cast-status { margin-top: 10px; font-size: 0.85rem; color: #888; }
+    .cast-title {
+      font-size: 0.85rem;
+      color: #888;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    /* Custom Cast Button */
+    .cast-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      background: linear-gradient(135deg, #6c5ce7, #7f70f0);
+      border: none;
+      border-radius: 10px;
+      color: white;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, opacity 0.2s;
+    }
+    .cast-btn:active { transform: scale(0.97); }
+    .cast-btn:hover { opacity: 0.9; }
+    .cast-btn svg {
+      width: 20px;
+      height: 20px;
+      fill: currentColor;
+    }
+    .cast-btn.connected {
+      background: linear-gradient(135deg, #00c853, #00e676);
+      color: #000;
+    }
+    .cast-btn.connecting {
+      background: linear-gradient(135deg, #fdcb6e, #f39c12);
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+    
+    .cast-status {
+      font-size: 0.8rem;
+      color: #888;
+      padding: 0 4px;
+    }
     .cast-status.connected { color: #00c853; }
 
     .input-group {
@@ -104,13 +155,27 @@
 
 <div class="container">
   <div class="header">
-    <h1> Video Player</h1>
+    <h1>📺 Video Player</h1>
     <span class="badge" id="protocolBadge">Загрузка...</span>
   </div>
 
+  <!-- Cast Button Area -->
   <div class="cast-area" id="castArea">
-    <google-cast-launcher></google-cast-launcher>
-    <div class="cast-status" id="castStatus"> Ожидание Cast API...</div>
+    <div class="cast-header">
+      <span class="cast-title">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M1 18v3h3c0-1.66-1.34-3-3-3zm0-4v2c2.76 0 5 2.24 5 5h2c0-3.87-3.13-7-7-7zm0-4v2c4.97 0 9 4.03 9 9h2c0-6.08-4.93-11-11-11zm20-7H3c-1.1 0-2 .9-2 2v3h2V5h18v14h-7v2h7c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/>
+        </svg>
+        Chromecast
+      </span>
+      <button class="cast-btn" id="castBtn" onclick="toggleCast()">
+        <svg viewBox="0 0 24 24">
+          <path d="M1 18v3h3c0-1.66-1.34-3-3-3zm0-4v2c2.76 0 5 2.24 5 5h2c0-3.87-3.13-7-7-7zm0-4v2c4.97 0 9 4.03 9 9h2c0-6.08-4.93-11-11-11zm20-7H3c-1.1 0-2 .9-2 2v3h2V5h18v14h-7v2h7c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/>
+        </svg>
+        <span id="castBtnText">Подключить</span>
+      </button>
+    </div>
+    <div class="cast-status" id="castStatus">Нажмите для поиска устройств</div>
   </div>
 
   <div class="input-group">
@@ -146,6 +211,8 @@
   const isFile = protocol === 'file:';
   const badge = document.getElementById('protocolBadge');
   const castArea = document.getElementById('castArea');
+  const castBtn = document.getElementById('castBtn');
+  const castBtnText = document.getElementById('castBtnText');
   
   if (isFile) {
     badge.textContent = '📁 Локальный файл';
@@ -162,6 +229,7 @@
   let castContext = null;
   let currentSession = null;
   let hlsInstance = null;
+  let isConnecting = false;
   
   const video = document.getElementById('videoPlayer');
   const placeholder = document.getElementById('placeholder');
@@ -206,37 +274,35 @@
   function setUrl(u) { urlInput.value = u; }
 
   // ═══════════════════════════════════════
-  //  Cast SDK v3 - ИСПРАВЛЕННАЯ ВЕРСИЯ
+  //  Cast SDK - Custom Button
   // ═══════════════════════════════════════
   if (!isFile) {
     window['__onGCastApiAvailable'] = function(isAvailable) {
       if (!isAvailable) {
         statusEl.textContent = '❌ Cast не поддерживается';
+        castBtn.disabled = true;
         return;
       }
       
       try {
-        // Получаем контекст
         castContext = cast.framework.CastContext.getInstance();
-        
-        // Настраиваем
         castContext.setOptions({
           receiverApplicationId: chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,
           autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED
         });
 
-        // ✅ ПРАВИЛЬНЫЙ СПОСОБ: используем CastContextEventType
         castContext.addEventListener(
           cast.framework.CastContextEventType.SESSION_STATE_CHANGED,
           onCastSessionChange
         );
         
-        statusEl.textContent = '🔍 Нажмите иконку Cast';
-        console.log('✅ Cast SDK initialized successfully');
+        statusEl.textContent = 'Нажмите для поиска устройств';
+        console.log('✅ Cast SDK initialized');
         
       } catch (e) {
         console.error('Cast init error:', e);
         statusEl.textContent = '⚠️ Cast недоступен';
+        castBtn.disabled = true;
       }
     };
 
@@ -249,14 +315,58 @@
           const dev = currentSession.getDevice();
           statusEl.innerHTML = `✅ <strong>${escapeHtml(dev.friendlyName)}</strong>`;
           statusEl.className = 'cast-status connected';
+          castBtn.classList.add('connected');
+          castBtn.classList.remove('connecting');
+          castBtnText.textContent = 'Отключить';
           showToast(`Подключено: ${dev.friendlyName}`, 'success');
+          isConnecting = false;
         }
       } 
       else if (event.sessionState === cast.framework.SessionState.SESSION_ENDED ||
                event.sessionState === cast.framework.SessionState.SESSION_SUSPENDED) {
         currentSession = null;
-        statusEl.textContent = '🔍 Нажмите иконку Cast';
+        statusEl.textContent = 'Нажмите для поиска устройств';
         statusEl.className = 'cast-status';
+        castBtn.classList.remove('connected');
+        castBtn.classList.remove('connecting');
+        castBtnText.textContent = 'Подключить';
+        isConnecting = false;
+      }
+      else if (event.sessionState === cast.framework.SessionState.SESSION_STARTING) {
+        isConnecting = true;
+        castBtn.classList.add('connecting');
+        castBtnText.textContent = 'Подключение...';
+        statusEl.textContent = '🔄 Подключение к устройству...';
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════
+  //  Toggle Cast Connection
+  // ═══════════════════════════════════════
+  function toggleCast() {
+    if (!castContext) {
+      showToast('Cast SDK не загружен', 'error');
+      return;
+    }
+    
+    if (currentSession) {
+      // Disconnect
+      castContext.endCurrentSession();
+    } else {
+      // Show device picker
+      const sessionManager = castContext.getSessionManager();
+      if (sessionManager) {
+        sessionManager.startSession()
+          .catch(err => {
+            console.error('Session start error:', err);
+            if (err.code !== 'cancel') {
+              showToast('Не удалось подключиться', 'error');
+            }
+            isConnecting = false;
+            castBtn.classList.remove('connecting');
+            castBtnText.textContent = 'Подключить';
+          });
       }
     }
   }
