@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Video Cast Player</title>
+  <!-- Cast SDK v3 -->
   <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -229,7 +230,6 @@
   let castContext = null;
   let currentSession = null;
   let hlsInstance = null;
-  let isConnecting = false;
   
   const video = document.getElementById('videoPlayer');
   const placeholder = document.getElementById('placeholder');
@@ -274,7 +274,7 @@
   function setUrl(u) { urlInput.value = u; }
 
   // ═══════════════════════════════════════
-  //  Cast SDK - Custom Button
+  //  Cast SDK - Custom Button (v3 Fixed)
   // ═══════════════════════════════════════
   if (!isFile) {
     window['__onGCastApiAvailable'] = function(isAvailable) {
@@ -291,6 +291,7 @@
           autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED
         });
 
+        // ✅ Используем правильный event type
         castContext.addEventListener(
           cast.framework.CastContextEventType.SESSION_STATE_CHANGED,
           onCastSessionChange
@@ -309,6 +310,7 @@
     function onCastSessionChange(event) {
       if (!event) return;
       
+      // State: CONNECTED
       if (event.sessionState === cast.framework.SessionState.SESSION_STARTED) {
         currentSession = castContext.getCurrentSession();
         if (currentSession) {
@@ -319,9 +321,9 @@
           castBtn.classList.remove('connecting');
           castBtnText.textContent = 'Отключить';
           showToast(`Подключено: ${dev.friendlyName}`, 'success');
-          isConnecting = false;
         }
       } 
+      // State: DISCONNECTED
       else if (event.sessionState === cast.framework.SessionState.SESSION_ENDED ||
                event.sessionState === cast.framework.SessionState.SESSION_SUSPENDED) {
         currentSession = null;
@@ -330,44 +332,45 @@
         castBtn.classList.remove('connected');
         castBtn.classList.remove('connecting');
         castBtnText.textContent = 'Подключить';
-        isConnecting = false;
       }
+      // State: CONNECTING
       else if (event.sessionState === cast.framework.SessionState.SESSION_STARTING) {
-        isConnecting = true;
         castBtn.classList.add('connecting');
         castBtnText.textContent = 'Подключение...';
-        statusEl.textContent = '🔄 Подключение к устройству...';
+        statusEl.textContent = '🔄 Подключение...';
       }
     }
   }
 
   // ═══════════════════════════════════════
-  //  Toggle Cast Connection
+  //  Toggle Cast (ИСПРАВЛЕНО)
   // ═══════════════════════════════════════
   function toggleCast() {
     if (!castContext) {
       showToast('Cast SDK не загружен', 'error');
       return;
     }
-    
+
     if (currentSession) {
-      // Disconnect
+      // Отключить
       castContext.endCurrentSession();
     } else {
-      // Show device picker
-      const sessionManager = castContext.getSessionManager();
-      if (sessionManager) {
-        sessionManager.startSession()
-          .catch(err => {
-            console.error('Session start error:', err);
-            if (err.code !== 'cancel') {
-              showToast('Не удалось подключиться', 'error');
-            }
-            isConnecting = false;
-            castBtn.classList.remove('connecting');
-            castBtnText.textContent = 'Подключить';
-          });
-      }
+      // Подключить
+      // ✅ В v3 SDK используется requestSession() вместо getSessionManager()
+      castContext.requestSession()
+        .then(() => {
+          // Успешный запрос сессии (но еще не старт)
+          console.log('Session requested');
+        })
+        .catch((error) => {
+          // Обработка отмены или ошибки
+          if (error.code !== 'cancel') {
+            console.error('Cast error', error);
+            showToast('Не удалось подключиться', 'error');
+          }
+          castBtn.classList.remove('connecting');
+          castBtnText.textContent = 'Подключить';
+        });
     }
   }
 
